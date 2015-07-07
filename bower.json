@@ -1,0 +1,40 @@
+{
+  "name": "quill-object-format",
+  "version": "0.1.0",
+  "authors": [
+    "Amadeusz Starzykiewicz <megawebmaster@gmail.com>"
+  ],
+  "description": "Configurable format for Quill. Adds ability to format text as \"object\" where you define what an object is.",
+  "main": "dist/module.js",
+  "keywords": [
+    "quill",
+    "format",
+    "agh",
+    "objects",
+    "configurable"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "quill": "megawebmaster/quill#dist",
+    "ngQuill": "megawebmaster/ngQuill#master",
+    "jQuery": "2.1.4"
+  },
+  "override": {
+    "quill": {
+      "main": ["dist/quill.js", "dist/quill.base.css"]
+    },
+    "ng-quill": {
+      "main": "src/ng-quill.min.js"
+    }
+  },
+  "resolve": {
+    "quill": "dist"
+  }
+}
