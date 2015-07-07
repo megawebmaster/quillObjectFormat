@@ -6,14 +6,7 @@ var QuillObjectFormat,
   bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 QuillObjectFormat = (function() {
-  var DEFAULTS, HIDE_MARGIN, events;
-
-  DEFAULTS = {
-    offset: 3,
-    template: "<span class='object'></span> <a class='remove'>Remove object</a>"
-  };
-
-  HIDE_MARGIN = -10000;
+  var events;
 
   events = {
     'search': [
@@ -44,7 +37,10 @@ QuillObjectFormat = (function() {
     },
     'node.value': function() {
       return function(node) {
-        return node.getAttribute('data-id');
+        return {
+          id: node.getAttribute('data-id'),
+          label: node.getAttribute('data-object')
+        };
       };
     }
   };
@@ -54,10 +50,10 @@ QuillObjectFormat = (function() {
   };
 
   function QuillObjectFormat() {
-    this.$get = ['$rootScope', '$injector', this.factory];
+    this.$get = ['$injector', '$rootScope', this.factory];
   }
 
-  QuillObjectFormat.prototype.factory = function($rootScope, $injector) {
+  QuillObjectFormat.prototype.factory = function($injector, $rootScope) {
     var Format, event, resolved, service;
     resolved = {};
     for (event in events) {
@@ -66,23 +62,23 @@ QuillObjectFormat = (function() {
     }
     Format = (function() {
       function Format(quill, options) {
-        var container;
         this.quill = quill;
-        this.formatElement = bind(this.formatElement, this);
+        this.removeFormatting = bind(this.removeFormatting, this);
         this.applyFormatting = bind(this.applyFormatting, this);
         this.bindToolbar = bind(this.bindToolbar, this);
-        this.removeFormatting = bind(this.removeFormatting, this);
         this.selectionChange = bind(this.selectionChange, this);
         this.textChange = bind(this.textChange, this);
-        this.options = jQuery.extend(options, DEFAULTS);
-        container = jQuery(this.quill.addContainer('ql-tooltip'));
-        container.addClass('ql-object-tooltip').html(this.options.template);
-        this.utils = new QuillObjectFormatUtils(container, this.quill);
+        this.utils = new QuillObjectFormatUtils(this.quill, options);
         this.utils.hide();
         this.quill.on('text-change', this.textChange);
         this.quill.on('selection-change', this.selectionChange);
         this.quill.onModuleLoad('toolbar', this.bindToolbar);
-        jQuery('.remove', container).on('click', this.removeFormatting);
+        jQuery('.remove', this.utils.container).on('click', (function(_this) {
+          return function(event) {
+            event.preventDefault();
+            return _this.removeFormatting();
+          };
+        })(this));
       }
 
       Format.prototype.textChange = function() {
@@ -98,22 +94,9 @@ QuillObjectFormat = (function() {
         }
         object = this.utils.findObject(range);
         if (object) {
-          return this.utils.show(object);
-        } else if (this.utils.isHidden()) {
+          return this.utils.show(object, range);
+        } else if (!this.utils.isHidden()) {
           return this.utils.hide();
-        }
-      };
-
-      Format.prototype.removeFormatting = function(event) {
-        var range;
-        event.preventDefault();
-        range = this.quill.getSelection();
-        if (range.isCollapsed()) {
-          range = this._expandRange(range);
-        }
-        this.quill.formatText(range, 'object', null, 'user');
-        if (this.toolbar != null) {
-          return this.toolbar.setActive('object', false);
         }
       };
 
@@ -133,17 +116,29 @@ QuillObjectFormat = (function() {
           text = this.quill.getText(range.start, range.end);
           return resolved['search'](text).then((function(_this) {
             return function(item) {
-              return _this.formatElement(range, item);
+              if (!range) {
+                return;
+              }
+              return _this.quill.formatText(range, 'object', item, 'user');
             };
           })(this));
         }
       };
 
-      Format.prototype.formatElement = function(range, item) {
-        if (!range) {
+      Format.prototype.removeFormatting = function() {
+        var range;
+        range = this.utils.container.data('range');
+        if (range == null) {
           return;
         }
-        return this.quill.formatText(range, 'object', item, 'user');
+        if (range.isCollapsed()) {
+          range = this.utils.expandRange(range);
+        }
+        this.quill.formatText(range, 'object', null, 'user');
+        if (this.toolbar != null) {
+          this.toolbar.setActive('object', false);
+        }
+        return this.utils.hide();
       };
 
       return Format;
@@ -185,12 +180,23 @@ var QuillObjectFormatUtils,
   bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 QuillObjectFormatUtils = (function() {
-  function QuillObjectFormatUtils(container1, quill) {
-    this.container = container1;
+  var DEFAULTS, HIDE_MARGIN;
+
+  DEFAULTS = {
+    offset: 3,
+    template: "<span class='object'></span> <a class='remove'>Remove object</a>"
+  };
+
+  HIDE_MARGIN = -10000;
+
+  function QuillObjectFormatUtils(quill, options) {
     this.quill = quill;
     this.findText = bind(this.findText, this);
     this.show = bind(this.show, this);
-    this.object = jQuery('.object', container);
+    this.options = jQuery.extend(options, DEFAULTS);
+    this.container = jQuery(this.quill.addContainer('ql-tooltip'));
+    this.container.addClass('ql-object-tooltip').html(this.options.template);
+    this.object = jQuery('.object', this.container);
   }
 
   QuillObjectFormatUtils.prototype.isHidden = function() {
@@ -198,14 +204,15 @@ QuillObjectFormatUtils = (function() {
   };
 
   QuillObjectFormatUtils.prototype.hide = function() {
-    return this.container.offset({
+    this.container.offset({
       left: HIDE_MARGIN
     });
+    return this.container.data('range', null);
   };
 
-  QuillObjectFormatUtils.prototype.show = function(reference) {
+  QuillObjectFormatUtils.prototype.show = function(reference, range) {
     var position;
-    position = this._findText(reference);
+    position = this.findText(reference);
     this.container.css({
       left: position.left,
       top: position.top
@@ -213,6 +220,7 @@ QuillObjectFormatUtils = (function() {
     if (reference.startOffset == null) {
       this.object.text(jQuery(reference).data('object'));
     }
+    this.container.data('range', range);
     return this.container.focus();
   };
 
@@ -221,7 +229,6 @@ QuillObjectFormatUtils = (function() {
     ref = this.quill.editor.doc.findLeafAt(range.start, true);
     start = range.start - ref[1];
     end = start + ref[0].length;
-    return;
     return {
       start: start,
       end: end
@@ -264,7 +271,6 @@ QuillObjectFormatUtils = (function() {
       top = this.quill.container.offsetHeight / 2 - container.offsetHeight / 2;
     }
     top += this.quill.container.scrollTop;
-    return;
     return {
       left: left,
       top: top

@@ -1,20 +1,27 @@
 class QuillObjectFormatUtils
-  constructor: (@container, @quill) ->
-    @object = jQuery('.object', container)
+  DEFAULTS =
+    offset: 3
+    template: "<span class='object'></span> <a class='remove'>Remove object</a>"
+  HIDE_MARGIN = -10000
+
+  constructor: (@quill, options) ->
+    @options = jQuery.extend(options, DEFAULTS)
+    @container = jQuery(@quill.addContainer('ql-tooltip'))
+    @container.addClass('ql-object-tooltip').html(@options.template)
+    @object = jQuery('.object', @container)
 
   isHidden: ->
     @container.offset().left == HIDE_MARGIN
 
   hide: ->
     @container.offset(left: HIDE_MARGIN)
+    @container.data('range', null)
 
-  show: (reference) =>
-    position = @_findText(reference)
+  show: (reference, range) =>
+    position = @findText(reference)
     @container.css(left: position.left, top: position.top)
-
-    if !reference.startOffset?
-      @object.text(jQuery(reference).data('object'))
-
+    @object.text(jQuery(reference).data('object')) unless reference.startOffset?
+    @container.data('range', range)
     @container.focus()
 
   expandRange: (range) ->
@@ -22,7 +29,6 @@ class QuillObjectFormatUtils
     start = range.start - ref[1]
     end = start + ref[0].length
 
-    return
     start: start
     end: end
 
@@ -57,6 +63,5 @@ class QuillObjectFormatUtils
 
     top += @quill.container.scrollTop
 
-    return
     left: left
     top: top
