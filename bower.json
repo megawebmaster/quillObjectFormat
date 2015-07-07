@@ -5,7 +5,15 @@
     "Amadeusz Starzykiewicz <megawebmaster@gmail.com>"
   ],
   "description": "Configurable format for Quill. Adds ability to format text as \"object\" where you define what an object is.",
-  "main": "dist/module.js",
+  "main": "src/module.coffee",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/megawebmaster/quillObjectFormat.git"
+  },
+  "moduleType": [
+    "globals"
+  ],
   "keywords": [
     "quill",
     "format",
@@ -19,12 +27,16 @@
     "node_modules",
     "bower_components",
     "test",
-    "tests"
+    "tests",
+    "coffeelint.json",
+    "Gulpfile.coffee",
+    "Gulpfile.js",
+    "package.json"
   ],
   "dependencies": {
     "quill": "megawebmaster/quill#dist",
     "ngQuill": "megawebmaster/ngQuill#master",
-    "jQuery": "2.1.4"
+    "jquery": "2.1.4"
   },
   "override": {
     "quill": {
