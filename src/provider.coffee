@@ -1,11 +1,7 @@
-class QuillObjectFormat
+class TaggableObjectQuillFormat
   events =
-    'search': ['$q', ($q) ->
-      (text) ->
-        promise = $q.defer()
-        promise.resolve(text)
-        return promise.promise
-    ]
+    'search': ->
+      (text) -> return text
     'node.add': ->
       (node, value) ->
         node.className = 'object label label-default'
@@ -22,20 +18,42 @@ class QuillObjectFormat
       (node) ->
         id: node.getAttribute('data-id')
         label: node.getAttribute('data-object')
-  when: (event, service) ->
+
+  on: (event, service) ->
     events[event] = service
 
   constructor: ->
-    @$get = ['$injector', '$rootScope', @factory]
+    @$get = ['$injector', '$rootScope', '$q', @factory]
 
-  factory: ($injector, $rootScope) ->
-    resolved = {}
+  registerFormat: (event, quill) =>
+    if !('object' of quill.editor.doc.formats)
+      quill.addFormat('object',
+        tag: 'SPAN'
+        add: @resolved['node.add']
+        remove: (node) =>
+          return @resolved['node.remove'](node.node)
+        value: @resolved['node.value']
+      )
+    quill.addModule('object-format')
+    quill.addModule('toolbar',
+      container: document.querySelector('#quill-toolbar')
+      formats:
+        tooltip:
+          object: 'object'
+    )
+
+  resolveEvents: ($injector) =>
+    @resolved = {}
     for event, service of events
-      resolved[event] = $injector.invoke(service)
+      @resolved[event] = $injector.invoke(service)
+
+  factory: ($injector, $rootScope, $q) =>
+    @resolveEvents($injector)
+    resolved = @resolved
 
     class Format
       constructor: (@quill, options) ->
-        @utils = new QuillObjectFormatUtils(@quill, options)
+        @utils = new TaggableObjectQuillFormatUtils(@quill, options)
         @utils.hide()
 
         @quill.on('text-change', @textChange)
@@ -69,7 +87,7 @@ class QuillObjectFormat
           @quill.formatText(range, 'object', null, 'user')
         else if !range.isCollapsed()
           text = @quill.getText(range.start, range.end)
-          resolved['search'](text).then((item) =>
+          $q.when(resolved['search'](text)).then((item) =>
             return unless range
             @quill.formatText(range, 'object', item, 'user')
           )
@@ -83,25 +101,13 @@ class QuillObjectFormat
         @toolbar.setActive('object', false) if @toolbar?
         @utils.hide()
 
-    return {
-    register: ->
-      Quill.registerModule('object-format', Format)
-      $rootScope.$on('quill.created', (event, editor) ->
-        editor.addFormat('object',
-          tag: 'SPAN'
-          add: resolved['node.add']
-          remove: (node) ->
-            return resolved['node.remove'](node.node)
-          value: resolved['node.value']
-        )
-        editor.addModule('object-format')
-        editor.addModule('toolbar',
-          container: document.querySelector('#quill-toolbar')
-          formats:
-            tooltip:
-              object: 'object'
-        )
-      )
-    }
+    isRegistered = false
 
-quillObjectFormat.provider('QuillObjectFormat', QuillObjectFormat)
+    register: =>
+      return if isRegistered
+
+      Quill.registerModule('object-format', Format)
+      isRegistered = true
+      $rootScope.$on('quill.created', @registerFormat)
+
+taggableObjectQuillFormat.provider('TaggableObjectQuillFormat', TaggableObjectQuillFormat)

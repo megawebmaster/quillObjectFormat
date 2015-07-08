@@ -1,1 +1,1 @@
-quillObjectFormat = angular.module('QuillObjectFormat', ['ngQuill'])
+taggableObjectQuillFormat = angular.module('TaggableObjectQuillFormat', ['ngQuill'])

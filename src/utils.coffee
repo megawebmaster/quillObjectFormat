@@ -1,4 +1,4 @@
-class QuillObjectFormatUtils
+class TaggableObjectQuillFormatUtils
   DEFAULTS =
     offset: 3
     template: "<span class='object'></span> <a class='remove'>Remove object</a>"
