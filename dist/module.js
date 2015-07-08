@@ -1,24 +1,19 @@
-var quillObjectFormat;
+var taggableObjectQuillFormat;
 
-quillObjectFormat = angular.module('QuillObjectFormat', ['ngQuill']);
+taggableObjectQuillFormat = angular.module('TaggableObjectQuillFormat', ['ngQuill']);
 
-var QuillObjectFormat,
+var TaggableObjectQuillFormat,
   bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-QuillObjectFormat = (function() {
+TaggableObjectQuillFormat = (function() {
   var events;
 
   events = {
-    'search': [
-      '$q', function($q) {
-        return function(text) {
-          var promise;
-          promise = $q.defer();
-          promise.resolve(text);
-          return promise.promise;
-        };
-      }
-    ],
+    'search': function() {
+      return function(text) {
+        return text;
+      };
+    },
     'node.add': function() {
       return function(node, value) {
         node.className = 'object label label-default';
@@ -45,30 +40,65 @@ QuillObjectFormat = (function() {
     }
   };
 
-  QuillObjectFormat.prototype.when = function(event, service) {
+  TaggableObjectQuillFormat.prototype.on = function(event, service) {
     return events[event] = service;
   };
 
-  function QuillObjectFormat() {
-    this.$get = ['$injector', '$rootScope', this.factory];
+  function TaggableObjectQuillFormat() {
+    this.factory = bind(this.factory, this);
+    this.resolveEvents = bind(this.resolveEvents, this);
+    this.registerFormat = bind(this.registerFormat, this);
+    this.$get = ['$injector', '$rootScope', '$q', this.factory];
   }
 
-  QuillObjectFormat.prototype.factory = function($injector, $rootScope) {
-    var Format, event, resolved, service;
-    resolved = {};
+  TaggableObjectQuillFormat.prototype.registerFormat = function(event, quill) {
+    if (!('object' in quill.editor.doc.formats)) {
+      quill.addFormat('object', {
+        tag: 'SPAN',
+        add: this.resolved['node.add'],
+        remove: (function(_this) {
+          return function(node) {
+            return _this.resolved['node.remove'](node.node);
+          };
+        })(this),
+        value: this.resolved['node.value']
+      });
+    }
+    quill.addModule('object-format');
+    return quill.addModule('toolbar', {
+      container: document.querySelector('#quill-toolbar'),
+      formats: {
+        tooltip: {
+          object: 'object'
+        }
+      }
+    });
+  };
+
+  TaggableObjectQuillFormat.prototype.resolveEvents = function($injector) {
+    var event, results, service;
+    this.resolved = {};
+    results = [];
     for (event in events) {
       service = events[event];
-      resolved[event] = $injector.invoke(service);
+      results.push(this.resolved[event] = $injector.invoke(service));
     }
+    return results;
+  };
+
+  TaggableObjectQuillFormat.prototype.factory = function($injector, $rootScope, $q) {
+    var Format, isRegistered, resolved;
+    this.resolveEvents($injector);
+    resolved = this.resolved;
     Format = (function() {
-      function Format(quill, options) {
-        this.quill = quill;
+      function Format(quill1, options) {
+        this.quill = quill1;
         this.removeFormatting = bind(this.removeFormatting, this);
         this.applyFormatting = bind(this.applyFormatting, this);
         this.bindToolbar = bind(this.bindToolbar, this);
         this.selectionChange = bind(this.selectionChange, this);
         this.textChange = bind(this.textChange, this);
-        this.utils = new QuillObjectFormatUtils(this.quill, options);
+        this.utils = new TaggableObjectQuillFormatUtils(this.quill, options);
         this.utils.hide();
         this.quill.on('text-change', this.textChange);
         this.quill.on('selection-change', this.selectionChange);
@@ -114,7 +144,7 @@ QuillObjectFormat = (function() {
           return this.quill.formatText(range, 'object', null, 'user');
         } else if (!range.isCollapsed()) {
           text = this.quill.getText(range.start, range.end);
-          return resolved['search'](text).then((function(_this) {
+          return $q.when(resolved['search'](text)).then((function(_this) {
             return function(item) {
               if (!range) {
                 return;
@@ -144,42 +174,31 @@ QuillObjectFormat = (function() {
       return Format;
 
     })();
+    isRegistered = false;
     return {
-      register: function() {
-        Quill.registerModule('object-format', Format);
-        return $rootScope.$on('quill.created', function(event, editor) {
-          editor.addFormat('object', {
-            tag: 'SPAN',
-            add: resolved['node.add'],
-            remove: function(node) {
-              return resolved['node.remove'](node.node);
-            },
-            value: resolved['node.value']
-          });
-          editor.addModule('object-format');
-          return editor.addModule('toolbar', {
-            container: document.querySelector('#quill-toolbar'),
-            formats: {
-              tooltip: {
-                object: 'object'
-              }
-            }
-          });
-        });
-      }
+      register: (function(_this) {
+        return function() {
+          if (isRegistered) {
+            return;
+          }
+          Quill.registerModule('object-format', Format);
+          isRegistered = true;
+          return $rootScope.$on('quill.created', _this.registerFormat);
+        };
+      })(this)
     };
   };
 
-  return QuillObjectFormat;
+  return TaggableObjectQuillFormat;
 
 })();
 
-quillObjectFormat.provider('QuillObjectFormat', QuillObjectFormat);
+taggableObjectQuillFormat.provider('TaggableObjectQuillFormat', TaggableObjectQuillFormat);
 
-var QuillObjectFormatUtils,
+var TaggableObjectQuillFormatUtils,
   bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-QuillObjectFormatUtils = (function() {
+TaggableObjectQuillFormatUtils = (function() {
   var DEFAULTS, HIDE_MARGIN;
 
   DEFAULTS = {
@@ -189,7 +208,7 @@ QuillObjectFormatUtils = (function() {
 
   HIDE_MARGIN = -10000;
 
-  function QuillObjectFormatUtils(quill, options) {
+  function TaggableObjectQuillFormatUtils(quill, options) {
     this.quill = quill;
     this.findText = bind(this.findText, this);
     this.show = bind(this.show, this);
@@ -199,18 +218,18 @@ QuillObjectFormatUtils = (function() {
     this.object = jQuery('.object', this.container);
   }
 
-  QuillObjectFormatUtils.prototype.isHidden = function() {
+  TaggableObjectQuillFormatUtils.prototype.isHidden = function() {
     return this.container.offset().left === HIDE_MARGIN;
   };
 
-  QuillObjectFormatUtils.prototype.hide = function() {
+  TaggableObjectQuillFormatUtils.prototype.hide = function() {
     this.container.offset({
       left: HIDE_MARGIN
     });
     return this.container.data('range', null);
   };
 
-  QuillObjectFormatUtils.prototype.show = function(reference, range) {
+  TaggableObjectQuillFormatUtils.prototype.show = function(reference, range) {
     var position;
     position = this.findText(reference);
     this.container.css({
@@ -224,7 +243,7 @@ QuillObjectFormatUtils = (function() {
     return this.container.focus();
   };
 
-  QuillObjectFormatUtils.prototype.expandRange = function(range) {
+  TaggableObjectQuillFormatUtils.prototype.expandRange = function(range) {
     var end, ref, start;
     ref = this.quill.editor.doc.findLeafAt(range.start, true);
     start = range.start - ref[1];
@@ -235,7 +254,7 @@ QuillObjectFormatUtils = (function() {
     };
   };
 
-  QuillObjectFormatUtils.prototype.findObject = function(range) {
+  TaggableObjectQuillFormatUtils.prototype.findObject = function(range) {
     var leaf, node, ref;
     ref = this.quill.editor.doc.findLeafAt(range.start, true);
     leaf = ref[0];
@@ -251,7 +270,7 @@ QuillObjectFormatUtils = (function() {
     return null;
   };
 
-  QuillObjectFormatUtils.prototype.findText = function(reference) {
+  TaggableObjectQuillFormatUtils.prototype.findText = function(reference) {
     var container, left, offsetLeft, offsetTop, parentBounds, referenceBounds, top;
     container = this.container.get(0);
     if (reference != null) {
@@ -277,6 +296,6 @@ QuillObjectFormatUtils = (function() {
     };
   };
 
-  return QuillObjectFormatUtils;
+  return TaggableObjectQuillFormatUtils;
 
 })();
