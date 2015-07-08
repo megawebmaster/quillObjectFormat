@@ -5,36 +5,34 @@
 Just require the package using bower:
 
 ```
-bower install megawebmaster/quillObjectFormat --save
+bower install megawebmaster/taggableObjectQuillFormat --save
 ```
 
 ## Usage
 
-1st step: Require the `QuillObjectFormat` in your main module.
+1st step: Require the `TaggableObjectQuillFormat` in your main module.
 
 2nd step: Set it up during configuration phase:
 
-    app.config(function(QuillObjectProvider){
-    	      QuillObjectProvider.when('search', ['$q', function($q){
-    			      return function(text){
-    					      object = {
-    							      id: 0
-    							      label: text
-    					      };
-    					      promise = $q.defer();
-    					      promise.resolve(object);
-    					      return promise.promise;
-    			      }
-    	      }]);
-        });
+    app.config((TaggableObjectQuillFormatProvider) ->
+        TaggableObjectQuillFormatProvider.on('search', ['$q', ($q) ->
+            (text) ->
+                object =
+                    id: 0
+                    label: text
+                promise = $q.defer()
+                promise.resolve(object)
+                return promise.promise
+        ])
+    )
 
-3rd step: Inject `QuillObjectFormat` into controller you want format to work.
+3rd step: Inject `TaggableObjectQuillFormat` into controller you want format to work.
 
 4th step: Register the format:
 
-    app.controller('MyCtrl', ['QuillObjectFormat', function(QuillObjectFormat){
-          QuillObjectFormat.register();
-        }]);
+    app.controller('MyCtrl', ['TaggableObjectQuillFormat', (TaggableObjectQuillFormat) ->
+      TaggableObjectQuillFormat.register()
+    ])
     
 5th step: Profit.
 
@@ -42,14 +40,14 @@ bower install megawebmaster/quillObjectFormat --save
 
 You can add your own services for these events:
 
-* `search` - fired when a object formatting button is clicked, should return a promise that resolves into the object you want to add to the text
-* `node.add` - fired when node is being added to the text, you can format the node according to values in the objects (resolved in `search`)
-* `node.remove` - fired when node is being removed, you need to remove every attribute you have added to the node during `node.add` phase
-* `node.value` - fired when node value is checked, needs to return unique value per each node
+* `search` - fired when a object formatting button is clicked, should return a promise that resolves into the object (or the object itself) you want to add to the text
+* `node.add` - fired when node is being added to the text, after DOM element creation, before adding to text, you can format the node according to values in the object (resolved in `search`)
+* `node.remove` - fired when node is being removed from the document (i.e. when text being decorated is removed completely), you need to remove every attribute you have added to the node during `node.add` phase
+* `node.value` - fired when node value is fetched (i.e. when you copy tagged text), needs to return a value for the tagged object that can be used to create new object from scratch
 
 ## Templating
 
-To use Quill in your templates you need to prepare a toolbar and use `ng-quill` directive like so:
+To use Quill in your templates you need to prepare a toolbar and use `ng-quill-editor` directive, i.e.:
     
     <div id="quill-toolbar" class="toolbar toolbar-container">
         <span class="ql-format-group">

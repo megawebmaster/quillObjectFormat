@@ -1,15 +1,15 @@
 {
-  "name": "quill-object-format",
+  "name": "taggable-object-quill-format",
   "version": "0.1.0",
   "authors": [
     "Amadeusz Starzykiewicz <megawebmaster@gmail.com>"
   ],
-  "description": "Configurable format for Quill. Adds ability to format text as \"object\" where you define what an object is.",
+  "description": "Configurable object format for Quill. Adds ability to format text as \"object\" where you define what an object is.",
   "main": "src/module.coffee",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git://github.com/megawebmaster/quillObjectFormat.git"
+    "url": "git://github.com/megawebmaster/taggableObjectQuillFormat.git"
   },
   "moduleType": [
     "globals"
